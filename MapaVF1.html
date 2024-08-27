@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa de Interpolación</title>
+    <!-- Incluir Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <!-- Estilos personalizados -->
+    <style>
+        #map {
+            height: 90vh;
+            width: 100%;
+            border-radius: 20px;
+            border: 3px solid yellow;
+        }
+        .colorbar-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background-color: black; /* Fondo negro */
+            padding: 10px;
+            border-radius: 10px;
+            z-index: 1000;
+            width: 60px; /* Ampliar para que la barra de color y las etiquetas queden dentro */
+        }
+        .colorbar-title {
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 5px;
+        }
+        .label {
+            text-align: center;
+            transform: translate(-50%, -150%); /* Mover el texto más arriba del punto */
+        }
+        .colorbar-labels {
+            color: white;
+            font-size: 12px;
+            position: absolute;
+            right: -30px; /* Posicionar etiquetas a la derecha */
+            top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div class="colorbar-container" id="legend">
+        <div class="colorbar-title">LAeq en dB(A)</div>
+        <canvas id="colorbar" width="30" height="300"></canvas>
+        <div class="colorbar-labels">
+            <div style="position: absolute; top: 0;">90</div>
+            <div style="position: absolute; top: 40px;">75</div>
+            <div style="position: absolute; top: 80px;">60</div>
+            <div style="position: absolute; top: 120px;">45</div>
+            <div style="position: absolute; top: 160px;">30</div>
+            <div style="position: absolute; top: 200px;">0</div>
+        </div>
+    </div>
+
+    <!-- Incluir Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <!-- Incluir el archivo leaflet-idw.js -->
+    <script src="https://drive.google.com/file/d/1x3KvqbDY2J2hAh2kRKc9Uf6kJkzzs0Ke/view?usp=sharing"></script>
+
+    <script>
+        // Crear el mapa centrado en las coordenadas especificadas con un zoom de 18
+        var map = L.map('map').setView([4.579232, -74.157880], 18);
+
+        // Añadir la capa de OpenStreetMap
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Datos de los dispositivos
+        var estaciones = [
+            { lat: 4.579222, lon: -74.157324, value: 50, label: 'Dispositivo 1' }, 
+            { lat: 4.579683, lon: -74.157545, value: 60, label: 'Dispositivo 2' }, 
+            { lat: 4.579950, lon: -74.158060, value: 70, label: 'Dispositivo 3' }, 
+            { lat: 4.578559, lon: -74.158182, value: 85, label: 'Dispositivo 4' }
+        ];
+
+        // Convertir los datos en un formato compatible con leaflet-idw
+        var idwData = estaciones.map(function(estacion) {
+            return [estacion.lat, estacion.lon, estacion.value];
+        });
+
+        // Crear la capa de interpolación (IDW) con opacidad de 0.5
+        var idwLayer = L.idwLayer(idwData, {
+            opacity: 0.5,
+            maxZoom: 18,
+            cellSize: 1,
+            exp: 2,
+            min: 50,
+            max: 85,
+            gradient: {
+                0.0: 'white',
+                0.5: '#edff59',
+                0.6: 'yellow',
+                0.75: 'orange',
+                0.9: 'red',
+                1.0: 'darkred'
+            }
+        }).addTo(map);
+
+        // Añadir marcadores para cada estación
+        estaciones.forEach(function(estacion) {
+            // Crear marcador con el tamaño y color especificado
+            var marker = L.circleMarker([estacion.lat, estacion.lon], {
+                radius: 3,
+                color: 'darkblue',
+                fillColor: 'darkblue',
+                fillOpacity: 1
+            }).addTo(map);
+
+            // Añadir etiqueta con el nombre del dispositivo y el valor de dBA en una línea centrada
+            L.marker([estacion.lat, estacion.lon], {
+                icon: L.divIcon({
+                    className: 'label',
+                    html: `<div style="color: black; font-size: 11px;">${estacion.label}: ${estacion.value} dB</div>`,
+                    iconSize: [100, 40]
+                })
+            }).addTo(map);
+        });
+
+        // Función para dibujar la barra de colores
+        function drawColorBar(ctx, gradient) {
+            var grd = ctx.createLinearGradient(0, 0, 0, 300);
+            for (var stop in gradient) {
+                grd.addColorStop(stop, gradient[stop]);
+            }
+            ctx.fillStyle = grd;
+            ctx.fillRect(0, 0, 20, 300);
+        }
+
+        // Dibujar la barra de colores en el canvas
+        var canvas = document.getElementById('colorbar');
+        var ctx = canvas.getContext('2d');
+        drawColorBar(ctx, idwLayer.options.gradient);
+    </script>
+</body>
+</html>
